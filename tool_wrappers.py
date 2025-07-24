@@ -5,17 +5,16 @@ their output for the SecOps-CLI-Wrapper project.
 
 Returned result schema
 {
-    "success" : bool,
-    "summary" : str,          # one-line human summary
-    "data"    : dict,         # parsed details (tool-specific)
-    "error"   : str | None    # stderr or raised exception text
+   success": bool,
+    "summary": str,          # one-line human summary
+    "data":    dict,         # parsed details (tool-specific)
+    "error":   str | None    # stderr or raised-exception text
 }
 """
 
 from __future__ import annotations
 
 import json
-import os
 import platform
 import shutil
 import subprocess
@@ -23,14 +22,15 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
-# ----------------------------------------------------------------------
+# -------------------------------------------------------
 #  Detect host OS once at import time
-# ----------------------------------------------------------------------
+# -------------------------------------------------------
 _OS: str = platform.system().lower()          # 'windows' | 'linux' | 'darwin'
 
-# ----------------------------------------------------------------------
+
+# -------------------------------------------------------
 #  Helper for uniform failure objects
-# ----------------------------------------------------------------------
+# -------------------------------------------------------
 def _fail(summary: str, err: str) -> Dict[str, Any]:
     return {"success": False, "summary": summary, "data": {}, "error": err}
 
@@ -40,9 +40,9 @@ class ToolManager:
     Wraps external binaries and exposes them through execute_tool().
     """
 
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------
     #  Build static meta-data once
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------
     def __init__(self) -> None:
         self.tool_info: Dict[str, Dict[str, Any]] = self._build_tool_catalogue()
 
@@ -50,9 +50,9 @@ class ToolManager:
         """Return OS-aware metadata for each supported tool."""
         install = {
             "windows": {
-                "nmap":   "Download MSI: https://nmap.org/download.html",
-                "nikto":  "Install Strawberry Perl ➜ clone Nikto from GitHub",
-                "clamav": "Download ClamAV MSI: https://www.clamav.net/downloads",
+                "nmap":   "Download MSI from https://nmap.org/download.html",
+                "nikto":  "Install Strawberry Perl → clone Nikto from GitHub",
+                "clamav": "Download ClamAV MSI from https://www.clamav.net/downloads",
             },
             "linux": {
                 "nmap":   "sudo apt/yum/dnf install nmap",
@@ -85,26 +85,21 @@ class ToolManager:
         }
 
         return {
-            "nmap": {
-                "description": "Network discovery and port scanning",
-                "executables": exe[_OS]["nmap"],
-                "install_guide": install[_OS]["nmap"],
-            },
-            "nikto": {
-                "description": "Web-server vulnerability scanner",
-                "executables": exe[_OS]["nikto"],
-                "install_guide": install[_OS]["nikto"],
-            },
-            "clamav": {
-                "description": "Antivirus engine for malware detection",
-                "executables": exe[_OS]["clamav"],
-                "install_guide": install[_OS]["clamav"],
-            },
+            name: {
+                "description": desc,
+                "executables": exe[_OS][name],
+                "install_guide": install[_OS][name],
+            }
+            for name, desc in {
+                "nmap": "Network discovery and port scanning",
+                "nikto": "Web-server vulnerability scanner",
+                "clamav": "Antivirus engine for malware detection",
+            }.items()
         }
 
-    # ------------------------------------------------------------------
-    #  Public helper methods used by main.py
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------
+    #  Public helpers used by main.py
+    # ---------------------------------------------------
     def is_tool_available(self, tool: str) -> bool:
         """Return True if any executable for *tool* is on PATH."""
         for exe in self.tool_info.get(tool, {}).get("executables", []):
@@ -116,11 +111,7 @@ class ToolManager:
         """Return list of all tools with availability status and path."""
         out: List[Dict[str, Any]] = []
         for name, meta in self.tool_info.items():
-            path = None
-            for exe in meta["executables"]:
-                path = shutil.which(exe)
-                if path:
-                    break
+            path = next((shutil.which(e) for e in meta["executables"] if shutil.which(e)), None)
             out.append(
                 {
                     "name": name,
@@ -136,7 +127,6 @@ class ToolManager:
         """Return dependency table including Python runtime."""
         deps: List[Dict[str, Any]] = []
 
-        # Python version
         ver_ok = sys.version_info >= (3, 7)
         deps.append(
             {
@@ -147,7 +137,6 @@ class ToolManager:
             }
         )
 
-        # Each external tool
         for row in self.get_available_tools():
             deps.append(
                 {
@@ -159,11 +148,14 @@ class ToolManager:
             )
         return deps
 
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------
     #  Main router called by DecisionEngine / main.py
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------
     def execute_tool(
-        self, tool_name: str, target: str, options: Dict[str, Any] | None = None
+        self,
+        tool_name: str,
+        target: str,
+        options: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """Dispatch to the correct internal runner."""
         options = options or {}
@@ -171,7 +163,8 @@ class ToolManager:
         if not self.is_tool_available(tool_name):
             guide = self.tool_info.get(tool_name, {}).get("install_guide", "Unknown tool")
             return _fail(
-                f"{tool_name} not installed", f"TOOL_NOT_AVAILABLE • Install hint: {guide}"
+                f"{tool_name} not installed",
+                f"TOOL_NOT_AVAILABLE • Install hint: {guide}",
             )
 
         match tool_name.lower():
@@ -184,14 +177,13 @@ class ToolManager:
             case _:
                 return _fail("Unsupported tool", "TOOL_NOT_IMPLEMENTED")
 
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------
     #  Nmap runner
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------
     def _run_nmap(self, target: str, opt: Dict[str, Any]) -> Dict[str, Any]:
         exe = self.tool_info["nmap"]["executables"][0]
         cmd: List[str] = [exe, "-oX", "-"]  # XML to stdout
 
-        # adjustable flags
         if opt.get("syn_scan"):
             cmd.append("-sS")
         if opt.get("service_detection"):
@@ -201,10 +193,7 @@ class ToolManager:
         elif opt.get("port_range") == "top_1000":
             cmd.append("--top-ports=1000")
 
-        # Timing template (T0-T5)
-        cmd += ["-T", opt.get("timing", "4")]
-
-        cmd.append(target)
+        cmd += ["-T", opt.get("timing", "4"), target]
 
         try:
             cp = subprocess.run(
@@ -216,13 +205,11 @@ class ToolManager:
             if cp.returncode != 0:
                 return _fail("Nmap error", cp.stderr or "Non-zero exit")
 
-            # naive XML scrape – count <port … state="open" …>
-            open_ports: List[int] = []
+            open_ports = []
             for line in cp.stdout.splitlines():
                 if 'state="open"' in line and "portid" in line:
                     try:
-                        port = int(line.split('portid="')[1].split('"')[0])
-                        open_ports.append(port)
+                        open_ports.append(int(line.split('portid="')[1].split('"')[0]))
                     except (ValueError, IndexError):
                         continue
 
@@ -237,11 +224,10 @@ class ToolManager:
         except Exception as exc:
             return _fail("Nmap exception", str(exc))
 
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------
     #  Nikto runner
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------
     def _run_nikto(self, target: str, opt: Dict[str, Any]) -> Dict[str, Any]:
-        # Determine command
         if _OS == "windows":
             perl = shutil.which("perl") or "perl"
             nikto_script = self.tool_info["nikto"]["executables"][0]
@@ -260,10 +246,68 @@ class ToolManager:
                 text=True,
                 timeout=opt.get("timeout", 600),
             )
-            if cp.returncode not in (0, 1):  # 1 means vulnerabilities found
+            if cp.returncode not in (0, 1):  # 1 = vulns found, still OK
                 return _fail("Nikto error", cp.stderr or "Non-zero exit")
 
             output = cp.stdout.strip()
             try:
                 parsed = json.loads(output) if output.startswith("{") else {}
                 vuln_count = len(parsed.get("vulnerabilities", []))
+            except Exception:
+                parsed = {}
+                vuln_count = 0
+
+            return {
+                "success": True,
+                "summary": f"Nikto found {vuln_count} potential issue(s)",
+                "data": {"vulnerabilities_found": vuln_count, "raw": output},
+                "error": None,
+            }
+        except subprocess.TimeoutExpired:
+            return _fail("Nikto timed out", "TIMEOUT")
+        except Exception as exc:
+            return _fail("Nikto exception", str(exc))
+
+    # ---------------------------------------------------
+    #  ClamAV runner
+    # ---------------------------------------------------
+    def _run_clamav(self, target: str, opt: Dict[str, Any]) -> Dict[str, Any]:
+        exe = self.tool_info["clamav"]["executables"][0]
+        cmd: List[str] = [
+            exe,
+            "--infected",
+            "--recursive",
+            "--no-summary",
+        ]
+
+        if opt.get("scan_archives", True):
+            cmd.append("--scan-archive")
+
+        cmd.append(target)
+
+        try:
+            cp = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=opt.get("timeout", 600),
+            )
+            if cp.returncode not in (0, 1):  # 0=clean, 1=infected
+                return _fail("ClamAV error", cp.stderr or "Non-zero exit")
+
+            infected = []
+            for line in cp.stdout.splitlines():
+                if line.endswith("FOUND"):
+                    file_path, threat = line.rsplit(":", 1)
+                    infected.append({"file": file_path.strip(), "threat": threat.strip(" FOUND")})
+
+            return {
+                "success": True,
+                "summary": f"ClamAV flagged {len(infected)} file(s)",
+                "data": {"infected_files": infected},
+                "error": None,
+            }
+        except subprocess.TimeoutExpired:
+            return _fail("ClamAV timed out", "TIMEOUT")
+        except Exception as exc:
+            return _fail("ClamAV exception", str(exc))
