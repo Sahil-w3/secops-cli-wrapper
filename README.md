@@ -178,15 +178,6 @@ Our tool doesn't just scan - it teaches you cybersecurity:
 └── 📚 Learn more: python main.py learn --topic web-security
 ```
 
-## 🤝 Contributing
-
-We welcome contributions! Here's how you can help:
-
-1. **🐛 Report Bugs**: Found an issue? Open a GitHub issue
-2. **💡 Suggest Features**: Have ideas? We'd love to hear them
-3. **🔧 Add Tools**: Integrate new security tools
-4. **📚 Improve Learning**: Add educational content
-5. **🧪 Write Tests**: Help us maintain code quality
 
 ### Development Setup
 
@@ -224,9 +215,6 @@ black .
 - [ ] 🚧 Advanced correlation algorithms
 - [ ] 🚧 Automated report generation
 
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
@@ -234,15 +222,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Inspired by the need for beginner-friendly security automation
 - Thanks to the open-source security community
 - Special thanks to the maintainers of Nmap, Nikto, and ClamAV
-
-## 📞 Support & Contact
-
-- 🐛 **Issues**: [GitHub Issues](https://github.com/your-username/secops-cli-wrapper/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/your-username/secops-cli-wrapper/discussions)
-- 📧 **Email**: your.email@example.com
-
----
-
-⭐ **Star this repository if you find it helpful!** ⭐
-
-**Made with ❤️ for the cybersecurity learning community**
